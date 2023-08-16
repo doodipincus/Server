@@ -6,8 +6,6 @@ const app = express()
 app.use(express.json())
 const port = 3000
 const saltRounds = 10;
-const myPlaintextPassword = 's0/\/\P4$$w0rD';
-const someOtherPlaintextPassword = 'not_bacon';
 
 
 const users = [{
@@ -42,12 +40,13 @@ app.get('/users/:id', (req, res) => {
 
 app.post('/', (req, res) => {
 
-    const { id, email, password } = req.body
+    let { id, email, password } = req.body
+    const hash = bcrypt.hashSync(password, saltRounds)
 
     users.push({
         id: id,
         email: email,
-        password: password
+        password: hash
     })
     res.send('the transaction completed successfully')
 })
@@ -66,7 +65,8 @@ app.put('/users/:id', (req, res) => {
                 element.email = email
             }
             if (password) {
-                element.password = password
+                const hash = bcrypt.hashSync(password, saltRounds)
+                element.password = hash
             }
         }
     })
@@ -85,23 +85,53 @@ app.delete('/users/:id', (req, res) => {
     res.send('the transaction completed successfully')
 })
 
-app.post('/users', (req, res) => {
-
-    const { email, password } = req.body
-    let flag = null
-    for (let i = 0; i < users.length; i++) {
-        const element = users[i];
-        if (element.email === email && element.password === password) {
-            flag = true
-            break
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const user = users.find(user => user.email === email);
+        console.log(user)
+        if (user) {
+            const result = await bcrypt.compare(password, user.password);
+            console.log(result)
+            if (result) {
+                res.send('User is connected');
+            } else {
+                res.send('Wrong credentials');
+            }
+        } else {
+            res.send('User not found');
         }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Server error');
     }
-    if (flag) {
-        res.send('User is connected')
-    } else {
-        res.send('wrong credentials')
-    }
-})
+});
+
+// app.post('/login', (req, res) => {
+
+//     const { email, password } = req.body
+//     let flag = null
+//     for (let i = 0; i < users.length; i++) {
+//         const element = users[i];
+//         if (element.email === email) {
+//             bcrypt.compare(password, element.password, function (err, result) {
+//                 // console.log(element.password)
+//                 // console.log(password)
+//                 // console.log(element.email)
+//                 console.log(result)
+//                 flag = result
+//             });
+//             // console.log(flag)
+//             break
+//             // flag = true
+//         }
+//     }
+//     if (flag) {
+//         res.send('User is connected')
+//     } else {
+//         res.send('wrong credentials')
+//     }
+// })
 
 app.listen(port, () => {
     console.log(`Server is up and running on port:${port}`);
